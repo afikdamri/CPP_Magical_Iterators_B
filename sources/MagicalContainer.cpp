@@ -1,68 +1,86 @@
 #include "MagicalContainer.hpp"
-#include <iostream>
+#include <cmath>
 #include <algorithm>
+#include <stdexcept>
+
+using namespace std;
 
 namespace ariel
 {
-    // My shorcut
+    /* My shorcut */
     typedef MagicalContainer::AscendingIterator short_Asc;
     typedef MagicalContainer::SideCrossIterator short_Sid;
     typedef MagicalContainer::PrimeIterator short_Pri;
 
     void MagicalContainer::addElement(int element)
     {
-        elements.push_back(element);
+        size_t insertIndex = 0;
+        while (insertIndex < elements.size() && elements[insertIndex] < element)
+        {
+            insertIndex++;
+        }
+        elements.push_back(0);
+        for (size_t i = elements.size()-1; i > insertIndex; --i)
+        {
+            elements[i] = elements[i-1];
+        }
+        elements[insertIndex] = element;
     }
 
     void MagicalContainer::removeElement(int element)
     {
-        elements.erase(std::remove(elements.begin(), elements.end(), element), elements.end());
+        auto iter = find(elements.begin(), elements.end(), element);
+        if (iter == elements.end())
+        {
+            throw runtime_error("Element not found. (MagicalContainer::removeElement)");
+        }
+        elements.erase(iter);
     }
 
-    size_t MagicalContainer::size() const
+    int MagicalContainer::size() const
     {
         return elements.size();
     }
 
-    void MagicalContainer::print() const
+    bool MagicalContainer::getElement(int element) const
     {
-        std::cout << "Container elements: ";
-        for (const auto &element : elements)
-        {
-            std::cout << element << " ";
-        }
-        std::cout << std::endl;
+        return find(elements.begin(), elements.end(), element) != elements.end();
     }
 
-    const std::vector<int> &MagicalContainer::getElements() const
+
+    /***** Reminder! short_Asc = MagicalContainer::AscendingIterator *****/
+    short_Asc::AscendingIterator(MagicalContainer &container)
+        : container(container)
     {
-        return elements;
+        iterator = container.elements.begin();
     }
 
-    bool MagicalContainer::isPrime(int num) const
+    short_Asc &short_Asc::operator=(const AscendingIterator &other)
     {
-        if (num < 2)
-        {
-            return false;
-        }
-        for (int i = 2; i * i <= num; ++i)
-        {
-            if (num % i == 0)
-            {
-                return false;
-            }
-        }
-        return true;
+        if (&container != &other.container)
+            throw runtime_error("Same container.");
+
+        iterator = other.iterator;
+        return *this;
     }
 
-    short_Asc::AscendingIterator(const MagicalContainer &cont) : container(cont), sortedElements(container.getElements()), index(0)
+    int short_Asc::operator*() const
     {
-        std::sort(sortedElements.begin(), sortedElements.end());
+        return *iterator;
+    }
+
+    short_Asc &short_Asc::operator++()
+    {
+        if (iterator == container.elements.end())
+            throw runtime_error("End of the container.");
+
+        ++iterator;
+        return *this;
     }
 
     bool short_Asc::operator==(const AscendingIterator &other) const
     {
-        return &container == &other.container && index == other.index;
+        return iterator == other.iterator;
     }
 
     bool short_Asc::operator!=(const AscendingIterator &other) const
@@ -70,185 +88,184 @@ namespace ariel
         return !(*this == other);
     }
 
-    bool short_Asc::operator>(const AscendingIterator &other) const
-    {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Comparison between iterators of different containers.");
-        }
-        return index > other.index;
-    }
-
     bool short_Asc::operator<(const AscendingIterator &other) const
     {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Comparison between iterators of different containers.");
-        }
-        return index < other.index;
+        return *iterator < *other.iterator;
     }
 
-    int short_Asc::operator*() const
+    bool short_Asc::operator>(const AscendingIterator &other) const
     {
-        return sortedElements[index];
-    }
-
-    short_Asc &short_Asc::operator++()
-    {
-        ++index;
-        return *this;
-    }
-
-    short_Asc &short_Asc::operator=(const AscendingIterator &other)
-    {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Iterators are pointing to different containers");
-        }
-
-        if (this != &other)
-        {
-            index = other.index;
-        }
-        return *this;
+        return *iterator > *other.iterator;
     }
 
     short_Asc short_Asc::begin() const
     {
-        return AscendingIterator(container);
+        AscendingIterator ascend(container);
+        if (!container.elements.empty())
+            ascend.iterator = container.elements.begin();
+        
+        return ascend;
     }
 
     short_Asc short_Asc::end() const
     {
-        AscendingIterator iter(container);
-        iter.index = sortedElements.size(); // Point to one position past the last element
-        return iter;
+        AscendingIterator ascend(container);
+        if (!container.elements.empty())
+            ascend.iterator = container.elements.end();
+        return ascend;
     }
 
-    MagicalContainer::SideCrossIterator::SideCrossIterator(MagicalContainer &container)
+    /***** Reminder! short_Sid = MagicalContainer::SideCrossIterator *****/
+    short_Sid::SideCrossIterator(MagicalContainer &container)
         : container(container)
     {
         if (container.elements.empty())
         {
-            lowIterator = container.elements.end();
-            highIterator = container.elements.end();
-            reverse = false;
+            forwardIterator = container.elements.end();
+            backwardIterator = container.elements.end();
+            isBackwards = false;
         }
         else
         {
-            lowIterator = container.elements.begin();
-            highIterator = std::prev(container.elements.end());
-            reverse = true;
+            forwardIterator = container.elements.begin();
+            backwardIterator = prev(container.elements.end()); 
+            isBackwards = true;
         }
     }
 
-    MagicalContainer::SideCrossIterator::SideCrossIterator(MagicalContainer &container, std::vector<int>::iterator iteratorStart, std::vector<int>::iterator iteratorEnd, bool reverse)
-        : container(container), lowIterator(iteratorStart), highIterator(iteratorEnd), reverse(reverse)
+    short_Sid::SideCrossIterator(MagicalContainer &container, vector<int>::iterator forwar, vector<int>::iterator backforward, bool backwards)
+     : container(container), forwardIterator(forwar), backwardIterator(backforward), isBackwards(backwards)
     {
     }
 
-    bool MagicalContainer::SideCrossIterator::operator==(const SideCrossIterator &other) const
+    bool short_Sid::operator==(const SideCrossIterator &other) const
     {
-
-        return (this->lowIterator == other.lowIterator) && (this->highIterator == other.highIterator) && (this->reverse == other.reverse);
+        int i = 0;
+        if(forwardIterator == other.forwardIterator)
+            i++;
+        if(backwardIterator == other.backwardIterator)
+            i++;
+        if(isBackwards == other.isBackwards)
+            i++;
+        return  i == 3;
     }
 
-    bool MagicalContainer::SideCrossIterator::operator!=(const SideCrossIterator &other) const
+    bool short_Sid::operator!=(const SideCrossIterator &other) const
     {
         return !(*this == other);
     }
 
-    MagicalContainer::SideCrossIterator &MagicalContainer::SideCrossIterator::operator++()
+    short_Sid &short_Sid::operator++()
     {
-
-        if (lowIterator == container.elements.end())
+        if (forwardIterator == container.elements.end())
+            throw runtime_error("End of the container.");
+        
+        if (forwardIterator == backwardIterator)
         {
-            throw std::runtime_error("Iterator is already at the end");
-        }
-        if (this->lowIterator == this->highIterator)
-        {
-            this->lowIterator = this->container.elements.end();
-            this->highIterator = this->container.elements.end();
-            this->reverse = false;
+            forwardIterator = container.elements.end();
+            backwardIterator = container.elements.end();
+            isBackwards = false;
             return *this;
         }
 
-        if (reverse)
-            ++this->lowIterator;
-        else
-            --this->highIterator;
+        if (isBackwards){
+            ++forwardIterator;
+            isBackwards = false;
+        }
+        else{
+            --backwardIterator;
+            isBackwards = true;
+        }
 
-        this->reverse = !this->reverse;
         return *this;
     }
 
-    int MagicalContainer::SideCrossIterator::operator*()
+    int short_Sid::operator*()
     {
-        if (reverse)
-            return *this->lowIterator;
+        if (isBackwards)
+            return *forwardIterator;
         else
-            return *this->highIterator;
+            return *backwardIterator;
     }
 
-    bool MagicalContainer::MagicalContainer::SideCrossIterator::operator<(const SideCrossIterator &other) const
+    bool short_Sid::operator<(const SideCrossIterator &other) const
     {
-        return *lowIterator < *other.lowIterator;
+        return *forwardIterator < *other.forwardIterator;
     }
 
-    bool MagicalContainer::SideCrossIterator::operator>(const SideCrossIterator &other) const
+    bool short_Sid::operator>(const SideCrossIterator &other) const
     {
-        return *lowIterator > *other.lowIterator;
+        return *forwardIterator > *other.forwardIterator;
     }
 
-    MagicalContainer::SideCrossIterator &MagicalContainer::SideCrossIterator::operator=(const SideCrossIterator &other)
+    short_Sid &short_Sid::operator=(const SideCrossIterator &other)
     {
         if (&container != &other.container)
-        {
-            throw std::runtime_error("Iterators are pointing to different containers");
-        }
+            throw runtime_error("Same container.");
 
         if (this != &other)
         {
             container = other.container;
-            lowIterator = other.lowIterator;
-            highIterator = other.highIterator;
-            reverse = other.reverse;
+            forwardIterator = other.forwardIterator;
+            backwardIterator = other.backwardIterator;
+            isBackwards = other.isBackwards;
         }
         return *this;
     }
 
-    MagicalContainer::SideCrossIterator MagicalContainer::SideCrossIterator::begin()
+    short_Sid short_Sid::begin()
     {
-
         if (container.elements.empty())
-        {
             return end();
-        }
-
-        return SideCrossIterator(container, container.elements.begin(), std::prev(container.elements.end()), true);
+            
+        SideCrossIterator cross(container, container.elements.begin(), prev(container.elements.end()), true);
+        return cross;
     }
 
-    MagicalContainer::SideCrossIterator MagicalContainer::SideCrossIterator::end()
+    short_Sid short_Sid::end()
     {
-        return SideCrossIterator(container, container.elements.end(), container.elements.end(), false);
+        SideCrossIterator cross(container, container.elements.end(), container.elements.end(), false);
+        return cross;
     }
 
-    short_Pri::PrimeIterator(const MagicalContainer &cont) : container(cont), index(0)
+    /***** Reminder! MagicalContainer::PrimeIterator short_Pri *****/
+    short_Pri::PrimeIterator(MagicalContainer &container)
+        : container(container), iterator(container.elements.begin())
     {
-        const std::vector<int> &elements = container.getElements();
-        for (int num : elements)
-        {
-            if (isPrime(num))
-            {
-                primeElements.push_back(num);
-            }
+        while (iterator != container.elements.end() && !isPrime(*iterator)){
+            ++iterator;
         }
-        std::sort(primeElements.begin(), primeElements.end());
+    }
+
+    short_Pri &short_Pri::operator=(const PrimeIterator &other)
+    {
+        if (&container != &other.container)
+            throw runtime_error("Same container.");
+
+        iterator = other.iterator;
+        return *this;
+    }
+
+    int short_Pri::operator*() const
+    {
+        return *iterator;
+    }
+
+    short_Pri &short_Pri::operator++()
+    {
+        if (iterator == container.elements.end())
+            throw runtime_error("End of the container.");
+
+        ++iterator;
+        while (iterator != container.elements.end() && !isPrime(*iterator)){
+            ++iterator;
+        }
+        return *this;
     }
 
     bool short_Pri::operator==(const PrimeIterator &other) const
     {
-        return &container == &other.container && index == other.index;
+        return iterator == other.iterator;
     }
 
     bool short_Pri::operator!=(const PrimeIterator &other) const
@@ -256,74 +273,43 @@ namespace ariel
         return !(*this == other);
     }
 
-    bool short_Pri::operator>(const PrimeIterator &other) const
-    {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Comparison between iterators of different containers.");
-        }
-        return index > other.index;
-    }
-
     bool short_Pri::operator<(const PrimeIterator &other) const
     {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Comparison between iterators of different containers.");
-        }
-        return index < other.index;
+        return *iterator < *other.iterator;
     }
 
-    int short_Pri::operator*() const
+    bool short_Pri::operator>(const PrimeIterator &other) const
     {
-        return primeElements[index];
-    }
-
-    short_Pri &short_Pri::operator++()
-    {
-        ++index;
-        return *this;
+        return *iterator > *other.iterator;
     }
 
     short_Pri short_Pri::begin() const
     {
-        return PrimeIterator(container);
+        PrimeIterator primes(container);
+        if (!container.elements.empty() && !isPrime(*container.elements.begin()))
+            ++primes;
+        
+        return primes;
     }
 
     short_Pri short_Pri::end() const
     {
-        PrimeIterator iter(container);
-        iter.index = primeElements.size(); // Point to one position past the last element
-        return iter;
+        PrimeIterator primes(container);
+        primes.iterator = container.elements.end();
+        return primes;
     }
 
-    short_Pri &short_Pri::operator=(const PrimeIterator &other)
-    {
-        if (&container != &other.container)
-        {
-            throw std::runtime_error("Iterators are pointing to different containers");
-        }
-
-        if (this != &other)
-        {
-            index = other.index;
-        }
-        return *this;
-    }
-
-    bool short_Pri::isPrime(int num)
+    bool short_Pri::isPrime(int num) const
     {
         if (num < 2)
-        {
             return false;
-        }
-        for (int i = 2; i * i <= num; ++i)
+            
+        for (int i = 2; i <= sqrt(num); ++i)
         {
             if (num % i == 0)
-            {
                 return false;
-            }
         }
         return true;
     }
-}
+
+} // namespace ariel
