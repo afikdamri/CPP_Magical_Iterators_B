@@ -52,14 +52,14 @@ namespace ariel
 
     public:
         SideCrossIterator(MagicalContainer &container);
-        SideCrossIterator(MagicalContainer &, std::vector<int>::iterator, std::vector<int>::iterator, bool);
-        SideCrossIterator &operator++();
-        int operator*();
-        bool operator==(const SideCrossIterator &) const;
-        bool operator!=(const SideCrossIterator &) const;
+        SideCrossIterator(MagicalContainer &container, std::vector<int>::iterator forward, std::vector<int>::iterator backward, bool isBackwards);
+        bool operator==(const SideCrossIterator &other) const;
+        bool operator!=(const SideCrossIterator &other) const;
         bool operator<(const SideCrossIterator &other) const;
         bool operator>(const SideCrossIterator &other) const;
+        int operator*();
         SideCrossIterator &operator=(const SideCrossIterator &other);
+        SideCrossIterator &operator++();
         SideCrossIterator begin();
         SideCrossIterator end();
     };

@@ -15,13 +15,11 @@ namespace ariel
     void MagicalContainer::addElement(int element)
     {
         size_t insertIndex = 0;
-        while (insertIndex < elements.size() && elements[insertIndex] < element)
-        {
+        while (insertIndex < elements.size() && elements[insertIndex] < element){ // can use sort func
             insertIndex++;
         }
         elements.push_back(0);
-        for (size_t i = elements.size()-1; i > insertIndex; --i)
-        {
+        for (size_t i = elements.size()-1; i > insertIndex; --i){
             elements[i] = elements[i-1];
         }
         elements[insertIndex] = element;
@@ -31,9 +29,8 @@ namespace ariel
     {
         auto iter = find(elements.begin(), elements.end(), element);
         if (iter == elements.end())
-        {
             throw runtime_error("Element not found. (MagicalContainer::removeElement)");
-        }
+        
         elements.erase(iter);
     }
 
@@ -44,7 +41,12 @@ namespace ariel
 
     bool MagicalContainer::getElement(int element) const
     {
-        return find(elements.begin(), elements.end(), element) != elements.end();
+        for (const int& item : elements){ // can use find func
+            if (item == element)
+                return true;
+        }
+
+        return false;
     }
 
 
